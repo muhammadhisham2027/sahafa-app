@@ -1,11 +1,13 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useTheme } from "../lib/theme";
 
 export default function RootLayout() {
+  const t = useTheme();
   return (
     <>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
+      <StatusBar style={t.statusBar} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="article"
@@ -14,6 +16,8 @@ export default function RootLayout() {
             headerTitle: "",
             headerBackTitle: "Back",
             presentation: "card",
+            headerStyle: { backgroundColor: t.bg },
+            headerTintColor: t.text,
           }}
         />
       </Stack>
