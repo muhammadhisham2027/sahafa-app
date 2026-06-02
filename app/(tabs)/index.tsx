@@ -7,7 +7,10 @@ import {
 import { useFocusEffect } from "expo-router";
 import { fetchArticles, type Article, type DateFilter } from "../../lib/api";
 import { getSelectedSources } from "../../lib/preferences";
+import { saveCache, loadCache, cacheAgeMinutes } from "../../lib/offline";
+import { setupNotifications } from "../../lib/notifications";
 import ArticleCard from "../../components/ArticleCard";
+import TrendingSection from "../../components/TrendingSection";
 import { useTheme } from "../../lib/theme";
 
 const REGIONS = ["All", "Global", "MENA", "Egypt", "Saudi Arabia", "Europe", "Africa", "Asia"];
@@ -31,7 +34,18 @@ export default function FeedScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedSources, setSelectedSources] = useState<string[] | null>(null);
+  const [offline, setOffline] = useState(false);
+  const [cacheAge, setCacheAge] = useState(0);
   const lastActiveRef = useRef<number>(Date.now());
+  const notifSetupRef = useRef(false);
+
+  // Request notification permissions once
+  useEffect(() => {
+    if (!notifSetupRef.current) {
+      notifSetupRef.current = true;
+      setupNotifications();
+    }
+  }, []);
 
   // Load user's source preferences
   useEffect(() => {
@@ -49,10 +63,25 @@ export default function FeedScreen() {
         sources: selectedSources ?? undefined,
         page: currentPage,
       });
-      if (reset) { setArticles(data); } else { setArticles((prev) => [...prev, ...data]); }
+      if (reset) {
+        setArticles(data);
+        setOffline(false);
+        if (data.length > 0) saveCache(data, total ?? 0);
+      } else {
+        setArticles((prev) => [...prev, ...data]);
+      }
       setHasMore((currentPage * 30) < (total ?? 0));
     } catch {
-      // silent — user can pull to refresh
+      // Network failure — load from cache on first load
+      if (reset) {
+        const cached = await loadCache();
+        if (cached) {
+          setArticles(cached.articles);
+          setHasMore(false);
+          setOffline(true);
+          setCacheAge(cacheAgeMinutes(cached.timestamp));
+        }
+      }
     }
     setLoading(false);
     setRefreshing(false);
@@ -62,7 +91,7 @@ export default function FeedScreen() {
     if (selectedSources !== null) load(true);
   }, [region, category, dateFilter, selectedSources]);
 
-  // Reload selected sources when tab comes into focus (in case settings changed)
+  // Reload selected sources when tab comes into focus
   useFocusEffect(
     useCallback(() => {
       getSelectedSources().then((sources) => {
@@ -75,7 +104,7 @@ export default function FeedScreen() {
     }, [])
   );
 
-  // Auto-refresh when app comes to foreground after 5+ minutes away
+  // Auto-refresh when returning from background after 5+ minutes
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next: AppStateStatus) => {
       if (next === "active") {
@@ -98,6 +127,8 @@ export default function FeedScreen() {
       )
     : articles;
 
+  const showTrending = !search && region === "All" && category === "All" && dateFilter === "all" && page === 1;
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.bg }]}>
       <View style={[styles.header, { borderBottomColor: t.border }]}>
@@ -106,6 +137,15 @@ export default function FeedScreen() {
           <Text style={[styles.subtitle, { color: t.textMuted }]}>Tech news from everywhere</Text>
         </View>
       </View>
+
+      {/* Offline banner */}
+      {offline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineText}>
+            Offline · Showing cached articles from {cacheAge < 60 ? `${cacheAge}m ago` : `${Math.floor(cacheAge / 60)}h ago`}
+          </Text>
+        </View>
+      )}
 
       {/* Search */}
       <View style={[styles.searchWrap, { backgroundColor: t.bgSecondary }]}>
@@ -162,12 +202,21 @@ export default function FeedScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.text} />}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.3}
+          ListHeaderComponent={showTrending ? <TrendingSection /> : null}
           ListFooterComponent={hasMore && !search ? <ActivityIndicator style={{ padding: 16 }} color={t.text} /> : null}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>📭</Text>
-              <Text style={[styles.emptyText, { color: t.text }]}>{search ? "No results found" : "No articles yet"}</Text>
-              <Text style={[styles.emptyHint, { color: t.textMuted }]}>{search ? "Try a different keyword" : "Pull to refresh"}</Text>
+              <Text style={styles.emptyIcon}>{search ? "🔍" : dateFilter !== "all" ? "📅" : "📭"}</Text>
+              <Text style={[styles.emptyText, { color: t.text }]}>
+                {search ? "No results found" : dateFilter === "today" ? "No articles yet today" : "No articles"}
+              </Text>
+              <Text style={[styles.emptyHint, { color: t.textMuted }]}>
+                {search
+                  ? "Try a different keyword"
+                  : dateFilter === "today"
+                  ? "Check back after 8am — new articles are fetched daily"
+                  : "Pull to refresh"}
+              </Text>
             </View>
           }
           contentContainerStyle={{ paddingBottom: 32 }}
@@ -182,6 +231,8 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1 },
   logo: { fontSize: 26, fontWeight: "700" },
   subtitle: { fontSize: 12, marginTop: 1 },
+  offlineBanner: { backgroundColor: "#d69e2e", paddingHorizontal: 16, paddingVertical: 6 },
+  offlineText: { color: "#fff", fontSize: 12, fontWeight: "600", textAlign: "center" },
   searchWrap: { flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginVertical: 10, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
   searchIcon: { fontSize: 14 },
   searchInput: { flex: 1, fontSize: 14 },
@@ -192,5 +243,5 @@ const styles = StyleSheet.create({
   empty: { alignItems: "center", paddingTop: 80 },
   emptyIcon: { fontSize: 40 },
   emptyText: { fontSize: 16, fontWeight: "600", marginTop: 12 },
-  emptyHint: { fontSize: 13, marginTop: 4 },
+  emptyHint: { fontSize: 13, marginTop: 4, textAlign: "center", paddingHorizontal: 32 },
 });

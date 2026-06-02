@@ -5,6 +5,7 @@ export type Article = {
   title: string;
   url: string;
   description: string | null;
+  summary: string | null;
   image_url: string | null;
   source_name: string;
   source_region: string;
@@ -20,6 +21,11 @@ export type Source = {
 };
 
 export type DateFilter = "all" | "today" | "week" | "month";
+
+export type NewsletterIssue = {
+  date: string;
+  articles: Article[];
+};
 
 export async function fetchArticles(params: {
   region?: string;
@@ -40,11 +46,25 @@ export async function fetchArticles(params: {
   return res.json();
 }
 
+export async function fetchTrending(): Promise<Article[]> {
+  const res = await fetch(`${API_URL}/api/trending`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.articles ?? [];
+}
+
 export async function fetchSources(): Promise<Source[]> {
   const res = await fetch(`${API_URL}/api/sources`);
   if (!res.ok) throw new Error("Failed to fetch sources");
   const data = await res.json();
   return data.sources;
+}
+
+export async function fetchNewsletterArchive(): Promise<NewsletterIssue[]> {
+  const res = await fetch(`${API_URL}/api/newsletter/archive`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.issues ?? [];
 }
 
 export async function subscribe(email: string): Promise<void> {
