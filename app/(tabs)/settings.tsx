@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import {
-  View, Text, SectionList, TouchableOpacity, StyleSheet, SafeAreaView, ActivityIndicator,
+  View, Text, SectionList, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { fetchSources, type Source } from "../../lib/api";
 import { getSelectedSources, saveSelectedSources } from "../../lib/preferences";

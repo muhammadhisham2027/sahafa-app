@@ -1,6 +1,5 @@
 import { Tabs } from "expo-router";
-import { StyleSheet, useColorScheme } from "react-native";
-import { BlurView } from "expo-blur";
+import { StyleSheet, View, useColorScheme } from "react-native";
 import { useTheme, fonts } from "../../lib/theme";
 
 export default function TabLayout() {
@@ -13,27 +12,21 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: t.text,
         tabBarInactiveTintColor: t.textMuted,
+        tabBarShowIcon: false,
+        tabBarIcon: () => <View />,
         tabBarStyle: {
-          position: "absolute",
-          borderTopColor: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
+          borderTopColor: t.border,
           borderTopWidth: StyleSheet.hairlineWidth,
-          backgroundColor: "transparent",
+          backgroundColor: dark ? "#0F0F14" : "#FFFFFF",
           elevation: 0,
           shadowOpacity: 0,
+          height: 56,
         },
-        tabBarBackground: () => (
-          <BlurView
-            intensity={80}
-            tint={dark ? "dark" : "light"}
-            style={StyleSheet.absoluteFill}
-          />
-        ),
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 12,
           fontFamily: fonts.semibold,
-          marginBottom: 2,
+          marginBottom: 10,
         },
-        tabBarShowIcon: false,
       }}
     >
       <Tabs.Screen name="index"     options={{ title: "Feed" }} />

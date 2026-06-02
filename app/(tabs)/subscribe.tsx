@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ActivityIndicator,
   SectionList, Share,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { formatDistanceToNow, format } from "date-fns";
 import { subscribe, fetchNewsletterArchive, type Article, type NewsletterIssue } from "../../lib/api";

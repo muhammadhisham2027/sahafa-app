@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import {
   View, Text, SectionList, TouchableOpacity, StyleSheet,
-  SafeAreaView, ActivityIndicator,
+  ActivityIndicator,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { fetchSources, type Source } from "../lib/api";
 import { markOnboardingDone, saveSelectedSources } from "../lib/preferences";
