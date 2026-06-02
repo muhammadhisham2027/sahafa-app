@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl,
-  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator,
-  TextInput, AppState, type AppStateStatus,
+  StyleSheet, SafeAreaView, ScrollView, TextInput,
+  AppState, type AppStateStatus,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { fetchArticles, type Article, type DateFilter } from "../../lib/api";
@@ -11,7 +11,8 @@ import { saveCache, loadCache, cacheAgeMinutes } from "../../lib/offline";
 import { setupNotifications } from "../../lib/notifications";
 import ArticleCard from "../../components/ArticleCard";
 import TrendingSection from "../../components/TrendingSection";
-import { useTheme } from "../../lib/theme";
+import { SkeletonFeed } from "../../components/Skeleton";
+import { useTheme, fonts } from "../../lib/theme";
 
 const REGIONS = ["All", "Global", "MENA", "Egypt", "Saudi Arabia", "Europe", "Africa", "Asia"];
 const CATEGORIES = ["All", "Tech", "Startups", "Dev", "AI"];
@@ -21,6 +22,33 @@ const DATE_FILTERS: { label: string; value: DateFilter }[] = [
   { label: "This week", value: "week" },
   { label: "This month", value: "month" },
 ];
+
+function FilterRow({ items, active, onSelect }: { items: string[]; active: string; onSelect: (v: string) => void }) {
+  const t = useTheme();
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.filterRow}
+      contentContainerStyle={styles.filterContent}
+    >
+      {items.map((item) => {
+        const isActive = active === item;
+        return (
+          <TouchableOpacity
+            key={item}
+            onPress={() => onSelect(item)}
+            style={[styles.chip, { backgroundColor: isActive ? t.chipActive : t.chip }]}
+          >
+            <Text style={[styles.chipText, { color: isActive ? t.chipActiveText : t.chipText, fontFamily: fonts.medium }]}>
+              {item}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
+}
 
 export default function FeedScreen() {
   const t = useTheme();
@@ -39,7 +67,6 @@ export default function FeedScreen() {
   const lastActiveRef = useRef<number>(Date.now());
   const notifSetupRef = useRef(false);
 
-  // Request notification permissions once
   useEffect(() => {
     if (!notifSetupRef.current) {
       notifSetupRef.current = true;
@@ -47,7 +74,6 @@ export default function FeedScreen() {
     }
   }, []);
 
-  // Load user's source preferences
   useEffect(() => {
     getSelectedSources().then(setSelectedSources);
   }, []);
@@ -57,9 +83,7 @@ export default function FeedScreen() {
     if (reset) { setLoading(true); setPage(1); }
     try {
       const { articles: data, total } = await fetchArticles({
-        region,
-        category,
-        date: dateFilter,
+        region, category, date: dateFilter,
         sources: selectedSources ?? undefined,
         page: currentPage,
       });
@@ -72,7 +96,6 @@ export default function FeedScreen() {
       }
       setHasMore((currentPage * 30) < (total ?? 0));
     } catch {
-      // Network failure — load from cache on first load
       if (reset) {
         const cached = await loadCache();
         if (cached) {
@@ -91,25 +114,22 @@ export default function FeedScreen() {
     if (selectedSources !== null) load(true);
   }, [region, category, dateFilter, selectedSources]);
 
-  // Reload selected sources when tab comes into focus
   useFocusEffect(
     useCallback(() => {
       getSelectedSources().then((sources) => {
         setSelectedSources((prev) => {
-          const prevStr = JSON.stringify(prev?.sort());
-          const nextStr = JSON.stringify(sources?.sort());
-          return prevStr !== nextStr ? sources : prev;
+          const a = JSON.stringify(prev?.slice().sort());
+          const b = JSON.stringify(sources?.slice().sort());
+          return a !== b ? sources : prev;
         });
       });
     }, [])
   );
 
-  // Auto-refresh when returning from background after 5+ minutes
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next: AppStateStatus) => {
       if (next === "active") {
-        const away = Date.now() - lastActiveRef.current;
-        if (away > 5 * 60 * 1000) load(true);
+        if (Date.now() - lastActiveRef.current > 5 * 60 * 1000) load(true);
       } else {
         lastActiveRef.current = Date.now();
       }
@@ -123,77 +143,70 @@ export default function FeedScreen() {
   const filtered = search.trim()
     ? articles.filter((a) =>
         a.title.toLowerCase().includes(search.toLowerCase()) ||
-        a.source_name.toLowerCase().includes(search.toLowerCase())
-      )
+        a.source_name.toLowerCase().includes(search.toLowerCase()))
     : articles;
 
-  const showTrending = !search && region === "All" && category === "All" && dateFilter === "all" && page === 1;
+  const showTrending = !search && region === "All" && category === "All" && dateFilter === "all";
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.bg }]}>
-      <View style={[styles.header, { borderBottomColor: t.border }]}>
-        <View>
-          <Text style={[styles.logo, { color: t.text }]}>صحافة</Text>
-          <Text style={[styles.subtitle, { color: t.textMuted }]}>Tech news from everywhere</Text>
-        </View>
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: t.border, backgroundColor: t.surface }]}>
+        <Text style={[styles.logo, { color: t.text, fontFamily: fonts.bold }]}>صحافة</Text>
+        <Text style={[styles.logoSub, { color: t.textMuted, fontFamily: fonts.regular }]}>Sahafa</Text>
       </View>
 
       {/* Offline banner */}
       {offline && (
         <View style={styles.offlineBanner}>
-          <Text style={styles.offlineText}>
-            Offline · Showing cached articles from {cacheAge < 60 ? `${cacheAge}m ago` : `${Math.floor(cacheAge / 60)}h ago`}
+          <Text style={[styles.offlineText, { fontFamily: fonts.medium }]}>
+            Offline · cached {cacheAge < 60 ? `${cacheAge}m` : `${Math.floor(cacheAge / 60)}h`} ago
           </Text>
         </View>
       )}
 
       {/* Search */}
-      <View style={[styles.searchWrap, { backgroundColor: t.bgSecondary }]}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          style={[styles.searchInput, { color: t.text }]}
-          placeholder="Search articles..."
-          placeholderTextColor={t.placeholder}
-          value={search}
-          onChangeText={setSearch}
-          returnKeyType="search"
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch("")}>
-            <Text style={{ color: t.textMuted, fontSize: 16 }}>✕</Text>
-          </TouchableOpacity>
-        )}
+      <View style={[styles.searchRow, { borderBottomColor: t.border, backgroundColor: t.surface }]}>
+        <View style={[styles.searchWrap, { backgroundColor: t.bgSecondary }]}>
+          <Text style={[styles.searchIcon, { color: t.textMuted }]}>⌕</Text>
+          <TextInput
+            style={[styles.searchInput, { color: t.text, fontFamily: fonts.regular }]}
+            placeholder="Search articles…"
+            placeholderTextColor={t.placeholder}
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch("")}>
+              <Text style={{ color: t.textMuted, fontSize: 14 }}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      {/* Region filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterContent}>
-        {REGIONS.map((r) => (
-          <TouchableOpacity key={r} onPress={() => setRegion(r)} style={[styles.chip, { backgroundColor: region === r ? t.chipActive : t.chip }]}>
-            <Text style={[styles.chipText, { color: region === r ? t.chipActiveText : t.chipText }]}>{r}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* Filters */}
+      <View style={[styles.filters, { borderBottomColor: t.border, backgroundColor: t.surface }]}>
+        <FilterRow items={REGIONS} active={region} onSelect={setRegion} />
+        <FilterRow items={CATEGORIES} active={category} onSelect={setCategory} />
+        <FilterRow
+          items={DATE_FILTERS.map((d) => d.label)}
+          active={DATE_FILTERS.find((d) => d.value === dateFilter)?.label ?? "All time"}
+          onSelect={(label) => {
+            const found = DATE_FILTERS.find((d) => d.label === label);
+            if (found) setDateFilter(found.value);
+          }}
+        />
+      </View>
 
-      {/* Category filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterContent}>
-        {CATEGORIES.map((c) => (
-          <TouchableOpacity key={c} onPress={() => setCategory(c)} style={[styles.chip, { backgroundColor: category === c ? t.chipActive : t.chip }]}>
-            <Text style={[styles.chipText, { color: category === c ? t.chipActiveText : t.chipText }]}>{c}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Date filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterContent}>
-        {DATE_FILTERS.map((d) => (
-          <TouchableOpacity key={d.value} onPress={() => setDateFilter(d.value)} style={[styles.chip, { backgroundColor: dateFilter === d.value ? t.chipActive : t.chip }]}>
-            <Text style={[styles.chipText, { color: dateFilter === d.value ? t.chipActiveText : t.chipText }]}>{d.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
+      {/* Feed */}
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={t.text} />
+        <FlatList
+          data={[]}
+          renderItem={null}
+          ListHeaderComponent={<SkeletonFeed />}
+          keyExtractor={(_, i) => String(i)}
+        />
       ) : (
         <FlatList
           data={filtered}
@@ -203,23 +216,26 @@ export default function FeedScreen() {
           onEndReached={onEndReached}
           onEndReachedThreshold={0.3}
           ListHeaderComponent={showTrending ? <TrendingSection /> : null}
-          ListFooterComponent={hasMore && !search ? <ActivityIndicator style={{ padding: 16 }} color={t.text} /> : null}
+          ListFooterComponent={hasMore && !search ? (
+            <View style={styles.loadingMore}>
+              <SkeletonFeed />
+            </View>
+          ) : null}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>{search ? "🔍" : dateFilter !== "all" ? "📅" : "📭"}</Text>
-              <Text style={[styles.emptyText, { color: t.text }]}>
-                {search ? "No results found" : dateFilter === "today" ? "No articles yet today" : "No articles"}
+              <Text style={[styles.emptyTitle, { color: t.text, fontFamily: fonts.semibold }]}>
+                {search ? "No results" : dateFilter === "today" ? "No articles today yet" : "Nothing here"}
               </Text>
-              <Text style={[styles.emptyHint, { color: t.textMuted }]}>
+              <Text style={[styles.emptyHint, { color: t.textMuted, fontFamily: fonts.regular }]}>
                 {search
                   ? "Try a different keyword"
                   : dateFilter === "today"
-                  ? "Check back after 8am — new articles are fetched daily"
-                  : "Pull to refresh"}
+                  ? "New articles are fetched daily at 6am"
+                  : "Pull down to refresh"}
               </Text>
             </View>
           }
-          contentContainerStyle={{ paddingBottom: 32 }}
+          contentContainerStyle={{ paddingBottom: 40 }}
         />
       )}
     </SafeAreaView>
@@ -228,20 +244,41 @@ export default function FeedScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1 },
-  logo: { fontSize: 26, fontWeight: "700" },
-  subtitle: { fontSize: 12, marginTop: 1 },
-  offlineBanner: { backgroundColor: "#d69e2e", paddingHorizontal: 16, paddingVertical: 6 },
-  offlineText: { color: "#fff", fontSize: 12, fontWeight: "600", textAlign: "center" },
-  searchWrap: { flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginVertical: 10, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
-  searchIcon: { fontSize: 14 },
+  header: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+  },
+  logo: { fontSize: 22 },
+  logoSub: { fontSize: 13 },
+  offlineBanner: { backgroundColor: "#CA8A04", paddingVertical: 5, paddingHorizontal: 16 },
+  offlineText: { color: "#fff", fontSize: 12, textAlign: "center" },
+  searchRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  searchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    gap: 6,
+  },
+  searchIcon: { fontSize: 16 },
   searchInput: { flex: 1, fontSize: 14 },
+  filters: { borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 4 },
   filterRow: { flexGrow: 0 },
-  filterContent: { paddingHorizontal: 16, gap: 8, paddingBottom: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginRight: 6 },
-  chipText: { fontSize: 13, fontWeight: "500" },
-  empty: { alignItems: "center", paddingTop: 80 },
-  emptyIcon: { fontSize: 40 },
-  emptyText: { fontSize: 16, fontWeight: "600", marginTop: 12 },
-  emptyHint: { fontSize: 13, marginTop: 4, textAlign: "center", paddingHorizontal: 32 },
+  filterContent: { paddingHorizontal: 12, paddingTop: 6, paddingBottom: 2, gap: 6 },
+  chip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, marginRight: 4 },
+  chipText: { fontSize: 12 },
+  empty: { alignItems: "center", paddingTop: 80, paddingHorizontal: 32 },
+  emptyTitle: { fontSize: 16, marginBottom: 6 },
+  emptyHint: { fontSize: 13, textAlign: "center", lineHeight: 19 },
+  loadingMore: { paddingTop: 4 },
 });

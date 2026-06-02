@@ -3,9 +3,8 @@ import { View, Text, FlatList, StyleSheet, SafeAreaView } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { getBookmarks, type Article } from "../../lib/bookmarks";
 import ArticleCard from "../../components/ArticleCard";
-import { useTheme } from "../../lib/theme";
+import { useTheme, fonts } from "../../lib/theme";
 
-// Re-export Article type for bookmarks lib
 export type { Article };
 
 export default function BookmarksScreen() {
@@ -13,17 +12,18 @@ export default function BookmarksScreen() {
   const [bookmarks, setBookmarks] = useState<Article[]>([]);
 
   const load = useCallback(async () => {
-    const saved = await getBookmarks();
-    setBookmarks(saved);
+    setBookmarks(await getBookmarks());
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.bg }]}>
-      <View style={[styles.header, { borderBottomColor: t.border }]}>
-        <Text style={[styles.title, { color: t.text }]}>Bookmarks</Text>
-        <Text style={[styles.subtitle, { color: t.textMuted }]}>{bookmarks.length} saved article{bookmarks.length !== 1 ? "s" : ""}</Text>
+      <View style={[styles.header, { borderBottomColor: t.border, backgroundColor: t.surface }]}>
+        <Text style={[styles.title, { color: t.text, fontFamily: fonts.bold }]}>Saved</Text>
+        <Text style={[styles.count, { color: t.textMuted, fontFamily: fonts.regular }]}>
+          {bookmarks.length} article{bookmarks.length !== 1 ? "s" : ""}
+        </Text>
       </View>
 
       <FlatList
@@ -32,12 +32,13 @@ export default function BookmarksScreen() {
         renderItem={({ item }) => <ArticleCard article={item} onBookmarkChange={load} />}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>🔖</Text>
-            <Text style={[styles.emptyText, { color: t.text }]}>No bookmarks yet</Text>
-            <Text style={[styles.emptyHint, { color: t.textMuted }]}>Tap 🏷️ on any article to save it</Text>
+            <Text style={[styles.emptyTitle, { color: t.text, fontFamily: fonts.semibold }]}>No saved articles</Text>
+            <Text style={[styles.emptyHint, { color: t.textMuted, fontFamily: fonts.regular }]}>
+              Tap 🏷️ on any article to save it for later
+            </Text>
           </View>
         }
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
       />
     </SafeAreaView>
   );
@@ -45,11 +46,18 @@ export default function BookmarksScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12, borderBottomWidth: 1 },
-  title: { fontSize: 26, fontWeight: "700" },
-  subtitle: { fontSize: 12, marginTop: 2 },
-  empty: { alignItems: "center", paddingTop: 80 },
-  emptyIcon: { fontSize: 40 },
-  emptyText: { fontSize: 16, fontWeight: "600", marginTop: 12 },
-  emptyHint: { fontSize: 13, marginTop: 4 },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+  },
+  title: { fontSize: 22 },
+  count: { fontSize: 13 },
+  empty: { alignItems: "center", paddingTop: 80, paddingHorizontal: 32 },
+  emptyTitle: { fontSize: 16, marginBottom: 6 },
+  emptyHint: { fontSize: 13, textAlign: "center", lineHeight: 19 },
 });

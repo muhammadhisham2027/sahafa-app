@@ -34,7 +34,8 @@
           "color": "#1a1a1a",
           "defaultChannel": "daily-digest"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "router": {},

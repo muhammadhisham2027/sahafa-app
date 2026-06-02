@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { useTheme } from "../../lib/theme";
+import { useTheme, fonts } from "../../lib/theme";
 
 export default function TabLayout() {
   const t = useTheme();
@@ -9,18 +9,27 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: t.text,
         tabBarInactiveTintColor: t.textMuted,
-        tabBarStyle: { borderTopColor: t.border, backgroundColor: t.bg },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarStyle: {
+          borderTopColor: t.border,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          backgroundColor: t.surface,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontFamily: fonts.semibold,
+          marginBottom: 2,
+        },
+        tabBarShowIcon: false,
       }}
     >
-      <Tabs.Screen name="index"     options={{ title: "Feed",       tabBarIcon: ({ color }) => <TabIcon label="📰" color={color} /> }} />
-      <Tabs.Screen name="bookmarks" options={{ title: "Bookmarks",  tabBarIcon: ({ color }) => <TabIcon label="🔖" color={color} /> }} />
-      <Tabs.Screen name="subscribe" options={{ title: "Newsletter", tabBarIcon: ({ color }) => <TabIcon label="✉️" color={color} /> }} />
-      <Tabs.Screen name="settings"  options={{ title: "Sources",    tabBarIcon: ({ color }) => <TabIcon label="⚙️" color={color} /> }} />
+      <Tabs.Screen name="index"     options={{ title: "Feed" }} />
+      <Tabs.Screen name="bookmarks" options={{ title: "Saved" }} />
+      <Tabs.Screen name="subscribe" options={{ title: "Newsletter" }} />
+      <Tabs.Screen name="settings"  options={{ title: "Sources" }} />
     </Tabs>
   );
 }
 
-function TabIcon({ label }: { label: string; color: string }) {
-  return <>{label}</>;
-}
+import { StyleSheet } from "react-native";
