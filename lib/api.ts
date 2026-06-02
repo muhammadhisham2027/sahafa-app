@@ -9,6 +9,7 @@ export type Article = {
   image_url: string | null;
   source_name: string;
   source_region: string;
+  source_country?: string;
   category: string;
   published_at: string;
 };
@@ -17,6 +18,7 @@ export type Source = {
   name: string;
   url: string;
   region: string;
+  country: string;
   category: string;
 };
 
@@ -29,6 +31,7 @@ export type NewsletterIssue = {
 
 export async function fetchArticles(params: {
   region?: string;
+  country?: string;
   category?: string;
   date?: DateFilter;
   sources?: string[];
@@ -36,6 +39,7 @@ export async function fetchArticles(params: {
 }): Promise<{ articles: Article[]; total: number }> {
   const query = new URLSearchParams();
   if (params.region && params.region !== "All") query.set("region", params.region);
+  if (params.country && params.country !== "All") query.set("country", params.country);
   if (params.category && params.category !== "All") query.set("category", params.category);
   if (params.date && params.date !== "all") query.set("date", params.date);
   if (params.sources && params.sources.length > 0) query.set("sources", params.sources.join(","));

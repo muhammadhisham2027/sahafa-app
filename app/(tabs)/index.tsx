@@ -5,16 +5,17 @@ import {
   AppState, type AppStateStatus,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
-import { fetchArticles, type Article, type DateFilter } from "../../lib/api";
+import { fetchArticles, fetchSources, type Article, type DateFilter } from "../../lib/api";
 import { getSelectedSources } from "../../lib/preferences";
 import { saveCache, loadCache, cacheAgeMinutes } from "../../lib/offline";
 import { setupNotifications } from "../../lib/notifications";
 import ArticleCard from "../../components/ArticleCard";
 import TrendingSection from "../../components/TrendingSection";
 import { SkeletonFeed } from "../../components/Skeleton";
+import CountryPicker from "../../components/CountryPicker";
 import { useTheme, fonts } from "../../lib/theme";
 
-const REGIONS = ["All", "Global", "MENA", "Egypt", "Saudi Arabia", "Europe", "Africa", "Asia"];
+const REGIONS = ["All", "Global", "MENA", "Egypt", "Saudi Arabia", "Europe", "Africa", "Asia", "Americas", "Oceania"];
 const CATEGORIES = ["All", "Tech", "Startups", "Dev", "AI"];
 const DATE_FILTERS: { label: string; value: DateFilter }[] = [
   { label: "All time", value: "all" },
@@ -56,6 +57,9 @@ export default function FeedScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [region, setRegion] = useState("All");
+  const [country, setCountry] = useState("All");
+  const [countryPickerVisible, setCountryPickerVisible] = useState(false);
+  const [availableCountries, setAvailableCountries] = useState<string[]>([]);
   const [category, setCategory] = useState("All");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [page, setPage] = useState(1);
@@ -78,12 +82,19 @@ export default function FeedScreen() {
     getSelectedSources().then(setSelectedSources);
   }, []);
 
+  useEffect(() => {
+    fetchSources().then((srcs) => {
+      const unique = [...new Set(srcs.map((s) => s.country).filter(Boolean))];
+      setAvailableCountries(unique);
+    }).catch(() => {});
+  }, []);
+
   const load = useCallback(async (reset = false) => {
     const currentPage = reset ? 1 : page;
     if (reset) { setLoading(true); setPage(1); }
     try {
       const { articles: data, total } = await fetchArticles({
-        region, category, date: dateFilter,
+        region, country, category, date: dateFilter,
         sources: selectedSources ?? undefined,
         page: currentPage,
       });
@@ -108,11 +119,11 @@ export default function FeedScreen() {
     }
     setLoading(false);
     setRefreshing(false);
-  }, [region, category, dateFilter, page, selectedSources]);
+  }, [region, country, category, dateFilter, page, selectedSources]);
 
   useEffect(() => {
     if (selectedSources !== null) load(true);
-  }, [region, category, dateFilter, selectedSources]);
+  }, [region, country, category, dateFilter, selectedSources]);
 
   useFocusEffect(
     useCallback(() => {
@@ -146,7 +157,7 @@ export default function FeedScreen() {
         a.source_name.toLowerCase().includes(search.toLowerCase()))
     : articles;
 
-  const showTrending = !search && region === "All" && category === "All" && dateFilter === "all";
+  const showTrending = !search && region === "All" && country === "All" && category === "All" && dateFilter === "all";
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.bg }]}>
@@ -187,7 +198,32 @@ export default function FeedScreen() {
 
       {/* Filters */}
       <View style={[styles.filters, { borderBottomColor: t.border, backgroundColor: t.surface }]}>
-        <FilterRow items={REGIONS} active={region} onSelect={setRegion} />
+        <FilterRow items={REGIONS} active={region} onSelect={(r) => { setRegion(r); setCountry("All"); }} />
+        <View style={[styles.filterRow, { flexDirection: "row", alignItems: "center" }]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterRow}
+            contentContainerStyle={styles.filterContent}
+          >
+            <TouchableOpacity
+              onPress={() => setCountryPickerVisible(true)}
+              style={[styles.chip, { backgroundColor: country !== "All" ? t.chipActive : t.chip }]}
+            >
+              <Text style={[styles.chipText, { color: country !== "All" ? t.chipActiveText : t.chipText, fontFamily: fonts.medium }]}>
+                {country !== "All" ? `🌍 ${country}` : "🌍 Country"}
+              </Text>
+            </TouchableOpacity>
+            {country !== "All" && (
+              <TouchableOpacity
+                onPress={() => setCountry("All")}
+                style={[styles.chip, { backgroundColor: t.chip }]}
+              >
+                <Text style={[styles.chipText, { color: t.chipText, fontFamily: fonts.medium }]}>✕ Clear</Text>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+        </View>
         <FilterRow items={CATEGORIES} active={category} onSelect={setCategory} />
         <FilterRow
           items={DATE_FILTERS.map((d) => d.label)}
@@ -198,6 +234,14 @@ export default function FeedScreen() {
           }}
         />
       </View>
+
+      <CountryPicker
+        visible={countryPickerVisible}
+        countries={availableCountries}
+        selected={country}
+        onSelect={setCountry}
+        onClose={() => setCountryPickerVisible(false)}
+      />
 
       {/* Feed */}
       {loading ? (
