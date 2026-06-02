@@ -12,19 +12,39 @@ export type Article = {
   published_at: string;
 };
 
+export type Source = {
+  name: string;
+  url: string;
+  region: string;
+  category: string;
+};
+
+export type DateFilter = "all" | "today" | "week" | "month";
+
 export async function fetchArticles(params: {
   region?: string;
   category?: string;
+  date?: DateFilter;
+  sources?: string[];
   page?: number;
 }): Promise<{ articles: Article[]; total: number }> {
   const query = new URLSearchParams();
   if (params.region && params.region !== "All") query.set("region", params.region);
   if (params.category && params.category !== "All") query.set("category", params.category);
+  if (params.date && params.date !== "all") query.set("date", params.date);
+  if (params.sources && params.sources.length > 0) query.set("sources", params.sources.join(","));
   if (params.page) query.set("page", String(params.page));
 
   const res = await fetch(`${API_URL}/api/articles?${query}`);
   if (!res.ok) throw new Error("Failed to fetch articles");
   return res.json();
+}
+
+export async function fetchSources(): Promise<Source[]> {
+  const res = await fetch(`${API_URL}/api/sources`);
+  if (!res.ok) throw new Error("Failed to fetch sources");
+  const data = await res.json();
+  return data.sources;
 }
 
 export async function subscribe(email: string): Promise<void> {
