@@ -1,8 +1,12 @@
 import { Tabs } from "expo-router";
+import { StyleSheet, useColorScheme } from "react-native";
+import { BlurView } from "expo-blur";
 import { useTheme, fonts } from "../../lib/theme";
 
 export default function TabLayout() {
   const t = useTheme();
+  const dark = useColorScheme() === "dark";
+
   return (
     <Tabs
       screenOptions={{
@@ -10,12 +14,20 @@ export default function TabLayout() {
         tabBarActiveTintColor: t.text,
         tabBarInactiveTintColor: t.textMuted,
         tabBarStyle: {
-          borderTopColor: t.border,
+          position: "absolute",
+          borderTopColor: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
           borderTopWidth: StyleSheet.hairlineWidth,
-          backgroundColor: t.surface,
+          backgroundColor: "transparent",
           elevation: 0,
           shadowOpacity: 0,
         },
+        tabBarBackground: () => (
+          <BlurView
+            intensity={80}
+            tint={dark ? "dark" : "light"}
+            style={StyleSheet.absoluteFill}
+          />
+        ),
         tabBarLabelStyle: {
           fontSize: 11,
           fontFamily: fonts.semibold,
@@ -31,5 +43,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
-import { StyleSheet } from "react-native";

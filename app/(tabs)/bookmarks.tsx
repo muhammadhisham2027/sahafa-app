@@ -19,7 +19,7 @@ export default function BookmarksScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.bg }]}>
-      <View style={[styles.header, { borderBottomColor: t.border, backgroundColor: t.surface }]}>
+      <View style={[styles.header, { borderBottomColor: t.border, backgroundColor: t.bg }]}>
         <Text style={[styles.title, { color: t.text, fontFamily: fonts.bold }]}>Saved</Text>
         <Text style={[styles.count, { color: t.textMuted, fontFamily: fonts.regular }]}>
           {bookmarks.length} article{bookmarks.length !== 1 ? "s" : ""}
@@ -38,7 +38,7 @@ export default function BookmarksScreen() {
             </Text>
           </View>
         }
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingTop: 10, paddingBottom: 100 }}
       />
     </SafeAreaView>
   );

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Share, Image } from "react-native";
+import {
+  View, Text, TouchableOpacity, StyleSheet, Share, Image, useColorScheme,
+} from "react-native";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { formatDistanceToNow } from "date-fns";
@@ -9,20 +11,22 @@ import { addBookmark, removeBookmark, isBookmarked } from "../lib/bookmarks";
 import { markAsRead, isRead } from "../lib/history";
 
 export const regionColors: Record<string, string> = {
-  "Egypt": "#DC2626",
-  "Saudi Arabia": "#16A34A",
-  "MENA": "#CA8A04",
-  "Global": "#2563EB",
-  "Europe": "#7C3AED",
-  "Africa": "#EA580C",
-  "Asia": "#DB2777",
+  "Egypt": "#FF3B30",
+  "Saudi Arabia": "#34C759",
+  "MENA": "#FF9500",
+  "Global": "#007AFF",
+  "Europe": "#5856D6",
+  "Africa": "#FF6B35",
+  "Asia": "#FF2D55",
+  "Americas": "#30B0C7",
+  "Oceania": "#32ADE6",
 };
 
 const categoryColors: Record<string, string> = {
-  "Tech": "#2563EB",
-  "Startups": "#7C3AED",
-  "Dev": "#EA580C",
-  "AI": "#DC2626",
+  "Tech": "#007AFF",
+  "Startups": "#5856D6",
+  "Dev": "#FF6B35",
+  "AI": "#FF3B30",
 };
 
 function readingMins(title: string, description: string | null): number {
@@ -39,8 +43,9 @@ type Props = {
 export default function ArticleCard({ article, onBookmarkChange, compact }: Props) {
   const router = useRouter();
   const t = useTheme();
-  const color = regionColors[article.source_region] ?? "#2563EB";
-  const catColor = categoryColors[article.category] ?? "#2563EB";
+  const dark = useColorScheme() === "dark";
+  const regionColor = regionColors[article.source_region] ?? "#007AFF";
+  const catColor = categoryColors[article.category] ?? "#007AFF";
   const timeAgo = formatDistanceToNow(new Date(article.published_at), { addSuffix: true });
   const mins = readingMins(article.title, article.description);
   const [bookmarked, setBookmarked] = useState(false);
@@ -67,7 +72,7 @@ export default function ArticleCard({ article, onBookmarkChange, compact }: Prop
   const shareArticle = async () => {
     await Share.share({
       title: article.title,
-      message: `${article.title}\n\nvia Sahafa 📰\n${article.url}`,
+      message: `${article.title}\n\nvia Sahafa\n${article.url}`,
       url: article.url,
     });
   };
@@ -86,13 +91,20 @@ export default function ArticleCard({ article, onBookmarkChange, compact }: Prop
   if (compact) {
     return (
       <TouchableOpacity
-        style={[styles.compactCard, { backgroundColor: t.surface, borderColor: t.border }]}
+        style={[
+          styles.compactCard,
+          {
+            backgroundColor: dark ? "rgba(255,255,255,0.07)" : "#FFFFFF",
+            borderColor: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+            shadowColor: t.shadow,
+          },
+        ]}
         onPress={openArticle}
         activeOpacity={0.75}
       >
-        <View style={[styles.compactStrip, { backgroundColor: color }]} />
+        <View style={[styles.compactAccent, { backgroundColor: regionColor }]} />
         <View style={styles.compactBody}>
-          <Text style={[styles.compactSource, { color: t.textMuted, fontFamily: fonts.semibold }]}>
+          <Text style={[styles.compactSource, { color: regionColor, fontFamily: fonts.semibold }]}>
             {article.source_name.toUpperCase()}
           </Text>
           <Text
@@ -112,133 +124,156 @@ export default function ArticleCard({ article, onBookmarkChange, compact }: Prop
   // ── Full card ────────────────────────────────────────────
   return (
     <TouchableOpacity
-      style={[styles.card, { borderBottomColor: t.border, backgroundColor: t.surface }]}
+      style={[
+        styles.card,
+        {
+          backgroundColor: dark ? "rgba(255,255,255,0.07)" : "#FFFFFF",
+          borderColor: dark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.0)",
+          shadowColor: t.shadow,
+        },
+      ]}
       onPress={openArticle}
-      activeOpacity={0.75}
+      activeOpacity={0.78}
     >
-      {/* Meta row */}
-      <View style={styles.metaRow}>
-        <View style={[styles.regionDot, { backgroundColor: color }]} />
-        <Text style={[styles.sourceName, { color: t.textMuted, fontFamily: fonts.semibold }]}>
-          {article.source_name}
-        </Text>
-        <Text style={[styles.separator, { color: t.border }]}> · </Text>
-        <Text style={[styles.metaText, { color: t.textMuted, fontFamily: fonts.regular }]}>{timeAgo}</Text>
-        <Text style={[styles.separator, { color: t.border }]}> · </Text>
-        <Text style={[styles.metaText, { color: t.textMuted, fontFamily: fonts.regular }]}>{mins} min</Text>
-      </View>
-
-      {/* Content row */}
-      <View style={styles.contentRow}>
-        <View style={styles.textBlock}>
-          <Text
-            style={[styles.title, { color: read ? t.textMuted : t.text, fontFamily: fonts.bold }]}
-            numberOfLines={hasImage ? 3 : 3}
-          >
-            {article.title}
+      {/* Hero image */}
+      {hasImage ? (
+        <Image
+          source={{ uri: article.image_url! }}
+          style={styles.heroImage}
+          onError={() => setImgError(true)}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.heroFallback, { backgroundColor: regionColor + "18" }]}>
+          <Text style={[styles.heroInitial, { color: regionColor, fontFamily: fonts.bold }]}>
+            {sourceInitial}
           </Text>
-          {displayText && !hasImage && (
-            <Text
-              style={[styles.description, { color: t.textSecondary, fontFamily: fonts.regular }]}
-              numberOfLines={2}
-            >
-              {displayText}
-            </Text>
-          )}
+        </View>
+      )}
+
+      <View style={styles.body}>
+        {/* Meta */}
+        <View style={styles.metaRow}>
+          <View style={[styles.sourceDot, { backgroundColor: regionColor }]} />
+          <Text style={[styles.sourceName, { color: regionColor, fontFamily: fonts.semibold }]}>
+            {article.source_name}
+          </Text>
+          <Text style={[styles.metaDot, { color: t.textMuted }]}> · </Text>
+          <Text style={[styles.metaText, { color: t.textMuted, fontFamily: fonts.regular }]}>{timeAgo}</Text>
+          <Text style={[styles.metaDot, { color: t.textMuted }]}> · </Text>
+          <Text style={[styles.metaText, { color: t.textMuted, fontFamily: fonts.regular }]}>{mins} min</Text>
         </View>
 
-        {/* Thumbnail */}
-        <View style={styles.thumbContainer}>
-          {hasImage ? (
-            <Image
-              source={{ uri: article.image_url! }}
-              style={styles.thumb}
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <View style={[styles.thumbFallback, { backgroundColor: color + "15" }]}>
-              <Text style={[styles.thumbInitial, { color, fontFamily: fonts.bold }]}>
-                {sourceInitial}
+        {/* Title */}
+        <Text
+          style={[
+            styles.title,
+            { color: read ? t.textMuted : t.text, fontFamily: fonts.bold },
+          ]}
+          numberOfLines={3}
+        >
+          {article.title}
+        </Text>
+
+        {/* Summary / description */}
+        {displayText && (
+          <Text
+            style={[styles.description, { color: t.textMuted, fontFamily: fonts.regular }]}
+            numberOfLines={2}
+          >
+            {displayText}
+          </Text>
+        )}
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <View style={styles.pills}>
+            <View style={[styles.pill, { backgroundColor: catColor + "18" }]}>
+              <Text style={[styles.pillText, { color: catColor, fontFamily: fonts.semibold }]}>
+                {article.category}
               </Text>
             </View>
-          )}
-        </View>
-      </View>
-
-      {/* Footer row */}
-      <View style={styles.footerRow}>
-        <View style={styles.tags}>
-          <View style={[styles.pill, { backgroundColor: color + "12" }]}>
-            <Text style={[styles.pillText, { color, fontFamily: fonts.semibold }]}>
-              {article.source_region}
-            </Text>
-          </View>
-          <View style={[styles.pill, { backgroundColor: catColor + "12" }]}>
-            <Text style={[styles.pillText, { color: catColor, fontFamily: fonts.semibold }]}>
-              {article.category}
-            </Text>
-          </View>
-          {read && (
-            <View style={[styles.pill, { backgroundColor: t.bgSecondary }]}>
-              <Text style={[styles.pillText, { color: t.textMuted, fontFamily: fonts.semibold }]}>Read</Text>
+            <View style={[styles.pill, { backgroundColor: regionColor + "18" }]}>
+              <Text style={[styles.pillText, { color: regionColor, fontFamily: fonts.semibold }]}>
+                {article.source_region}
+              </Text>
             </View>
-          )}
-        </View>
+          </View>
 
-        <View style={styles.actions}>
-          <TouchableOpacity onPress={shareArticle} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={[styles.actionBtn, { color: t.textMuted }]}>↗</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={toggleBookmark} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.actionBtn}>{bookmarked ? "🔖" : "🏷️"}</Text>
-          </TouchableOpacity>
+          <View style={styles.actions}>
+            <TouchableOpacity onPress={shareArticle} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={[styles.actionIcon, { color: t.textMuted }]}>↗</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={toggleBookmark} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.actionIcon}>{bookmarked ? "🔖" : "🏷️"}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
   );
 }
 
-const THUMB = 80;
-
 const styles = StyleSheet.create({
-  // Full card
   card: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginHorizontal: 14,
+    marginBottom: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: "hidden",
+    // iOS shadow
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    // Android
+    elevation: 3,
   },
-  metaRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  regionDot: { width: 6, height: 6, borderRadius: 3, marginRight: 7 },
-  sourceName: { fontSize: 11, letterSpacing: 0.2 },
-  separator: { fontSize: 11 },
-  metaText: { fontSize: 11 },
-  contentRow: { flexDirection: "row", gap: 12, marginBottom: 10 },
-  textBlock: { flex: 1 },
-  title: { fontSize: 15, lineHeight: 22, marginBottom: 5 },
-  description: { fontSize: 13, lineHeight: 19 },
-  thumbContainer: { width: THUMB, height: THUMB, borderRadius: 8, overflow: "hidden", flexShrink: 0 },
-  thumb: { width: THUMB, height: THUMB },
-  thumbFallback: { width: THUMB, height: THUMB, alignItems: "center", justifyContent: "center" },
-  thumbInitial: { fontSize: 26 },
-  footerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  tags: { flexDirection: "row", gap: 6, flexWrap: "wrap", flex: 1 },
-  pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  pillText: { fontSize: 11 },
-  actions: { flexDirection: "row", gap: 14, marginLeft: 8 },
-  actionBtn: { fontSize: 15 },
+  heroImage: {
+    width: "100%",
+    height: 176,
+  },
+  heroFallback: {
+    width: "100%",
+    height: 80,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroInitial: { fontSize: 28 },
 
-  // Compact (trending) card
+  body: { padding: 14 },
+
+  metaRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  sourceDot: { width: 5, height: 5, borderRadius: 3, marginRight: 6 },
+  sourceName: { fontSize: 11, letterSpacing: 0.2 },
+  metaDot: { fontSize: 11 },
+  metaText: { fontSize: 11 },
+
+  title: { fontSize: 15.5, lineHeight: 22, marginBottom: 6 },
+  description: { fontSize: 13, lineHeight: 19, marginBottom: 12 },
+
+  footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 2 },
+  pills: { flexDirection: "row", gap: 6, flex: 1, flexWrap: "wrap" },
+  pill: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20 },
+  pillText: { fontSize: 11 },
+
+  actions: { flexDirection: "row", gap: 14 },
+  actionIcon: { fontSize: 15 },
+
+  // Compact
   compactCard: {
-    width: 172,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
+    width: 176,
+    borderRadius: 16,
+    borderWidth: 1,
     overflow: "hidden",
     marginRight: 10,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  compactStrip: { height: 3 },
-  compactBody: { padding: 12, gap: 5 },
-  compactSource: { fontSize: 10, letterSpacing: 0.6 },
-  compactTitle: { fontSize: 13, lineHeight: 18 },
+  compactAccent: { height: 3 },
+  compactBody: { padding: 12, gap: 6 },
+  compactSource: { fontSize: 10, letterSpacing: 0.7 },
+  compactTitle: { fontSize: 13.5, lineHeight: 19 },
   compactTime: { fontSize: 11 },
 });

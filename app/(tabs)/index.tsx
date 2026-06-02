@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl,
   StyleSheet, SafeAreaView, ScrollView, TextInput,
-  AppState, type AppStateStatus,
+  AppState, type AppStateStatus, useColorScheme,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { fetchArticles, fetchSources, type Article, type DateFilter } from "../../lib/api";
@@ -24,35 +24,39 @@ const DATE_FILTERS: { label: string; value: DateFilter }[] = [
   { label: "This month", value: "month" },
 ];
 
-function FilterRow({ items, active, onSelect }: { items: string[]; active: string; onSelect: (v: string) => void }) {
+function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   const t = useTheme();
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.filterRow}
-      contentContainerStyle={styles.filterContent}
+    <TouchableOpacity
+      onPress={onPress}
+      style={[
+        styles.chip,
+        {
+          backgroundColor: active ? t.chipActive : t.chip,
+          borderColor: active ? "transparent" : t.border,
+        },
+      ]}
     >
-      {items.map((item) => {
-        const isActive = active === item;
-        return (
-          <TouchableOpacity
-            key={item}
-            onPress={() => onSelect(item)}
-            style={[styles.chip, { backgroundColor: isActive ? t.chipActive : t.chip }]}
-          >
-            <Text style={[styles.chipText, { color: isActive ? t.chipActiveText : t.chipText, fontFamily: fonts.medium }]}>
-              {item}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+      <Text style={[styles.chipText, { color: active ? t.chipActiveText : t.chipText, fontFamily: fonts.medium }]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function FilterRow({ items, active, onSelect }: { items: string[]; active: string; onSelect: (v: string) => void }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContent}>
+      {items.map((item) => (
+        <Chip key={item} label={item} active={active === item} onPress={() => onSelect(item)} />
+      ))}
     </ScrollView>
   );
 }
 
 export default function FeedScreen() {
   const t = useTheme();
+  const dark = useColorScheme() === "dark";
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -159,12 +163,35 @@ export default function FeedScreen() {
 
   const showTrending = !search && region === "All" && country === "All" && category === "All" && dateFilter === "all";
 
+  const headerBg = dark ? "rgba(8,8,15,0.95)" : "rgba(242,242,247,0.95)";
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.bg }]}>
+
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: t.border, backgroundColor: t.surface }]}>
-        <Text style={[styles.logo, { color: t.text, fontFamily: fonts.bold }]}>صحافة</Text>
-        <Text style={[styles.logoSub, { color: t.textMuted, fontFamily: fonts.regular }]}>Sahafa</Text>
+      <View style={[styles.header, { backgroundColor: headerBg, borderBottomColor: t.border }]}>
+        <View style={styles.headerLeft}>
+          <Text style={[styles.logo, { color: t.text, fontFamily: fonts.bold }]}>صحافة</Text>
+          <Text style={[styles.logoSub, { color: t.textMuted, fontFamily: fonts.regular }]}>Sahafa</Text>
+        </View>
+
+        {/* Search */}
+        <View style={[styles.searchWrap, { backgroundColor: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }]}>
+          <Text style={[styles.searchIcon, { color: t.textMuted }]}>⌕</Text>
+          <TextInput
+            style={[styles.searchInput, { color: t.text, fontFamily: fonts.regular }]}
+            placeholder="Search…"
+            placeholderTextColor={t.textMuted}
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch("")}>
+              <Text style={{ color: t.textMuted, fontSize: 13 }}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Offline banner */}
@@ -176,54 +203,19 @@ export default function FeedScreen() {
         </View>
       )}
 
-      {/* Search */}
-      <View style={[styles.searchRow, { borderBottomColor: t.border, backgroundColor: t.surface }]}>
-        <View style={[styles.searchWrap, { backgroundColor: t.bgSecondary }]}>
-          <Text style={[styles.searchIcon, { color: t.textMuted }]}>⌕</Text>
-          <TextInput
-            style={[styles.searchInput, { color: t.text, fontFamily: fonts.regular }]}
-            placeholder="Search articles…"
-            placeholderTextColor={t.placeholder}
-            value={search}
-            onChangeText={setSearch}
-            returnKeyType="search"
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch("")}>
-              <Text style={{ color: t.textMuted, fontSize: 14 }}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
       {/* Filters */}
-      <View style={[styles.filters, { borderBottomColor: t.border, backgroundColor: t.surface }]}>
+      <View style={[styles.filters, { backgroundColor: headerBg, borderBottomColor: t.border }]}>
         <FilterRow items={REGIONS} active={region} onSelect={(r) => { setRegion(r); setCountry("All"); }} />
-        <View style={[styles.filterRow, { flexDirection: "row", alignItems: "center" }]}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filterRow}
-            contentContainerStyle={styles.filterContent}
-          >
-            <TouchableOpacity
-              onPress={() => setCountryPickerVisible(true)}
-              style={[styles.chip, { backgroundColor: country !== "All" ? t.chipActive : t.chip }]}
-            >
-              <Text style={[styles.chipText, { color: country !== "All" ? t.chipActiveText : t.chipText, fontFamily: fonts.medium }]}>
-                {country !== "All" ? `🌍 ${country}` : "🌍 Country"}
-              </Text>
-            </TouchableOpacity>
-            {country !== "All" && (
-              <TouchableOpacity
-                onPress={() => setCountry("All")}
-                style={[styles.chip, { backgroundColor: t.chip }]}
-              >
-                <Text style={[styles.chipText, { color: t.chipText, fontFamily: fonts.medium }]}>✕ Clear</Text>
-              </TouchableOpacity>
-            )}
-          </ScrollView>
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContent}>
+          <Chip
+            label={country !== "All" ? `🌍 ${country}` : "🌍 Country"}
+            active={country !== "All"}
+            onPress={() => setCountryPickerVisible(true)}
+          />
+          {country !== "All" && (
+            <Chip label="✕ Clear" active={false} onPress={() => setCountry("All")} />
+          )}
+        </ScrollView>
         <FilterRow items={CATEGORIES} active={category} onSelect={setCategory} />
         <FilterRow
           items={DATE_FILTERS.map((d) => d.label)}
@@ -260,26 +252,18 @@ export default function FeedScreen() {
           onEndReached={onEndReached}
           onEndReachedThreshold={0.3}
           ListHeaderComponent={showTrending ? <TrendingSection /> : null}
-          ListFooterComponent={hasMore && !search ? (
-            <View style={styles.loadingMore}>
-              <SkeletonFeed />
-            </View>
-          ) : null}
+          ListFooterComponent={hasMore && !search ? <View style={{ paddingTop: 4 }}><SkeletonFeed /></View> : null}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={[styles.emptyTitle, { color: t.text, fontFamily: fonts.semibold }]}>
                 {search ? "No results" : dateFilter === "today" ? "No articles today yet" : "Nothing here"}
               </Text>
               <Text style={[styles.emptyHint, { color: t.textMuted, fontFamily: fonts.regular }]}>
-                {search
-                  ? "Try a different keyword"
-                  : dateFilter === "today"
-                  ? "New articles are fetched daily at 6am"
-                  : "Pull down to refresh"}
+                {search ? "Try a different keyword" : dateFilter === "today" ? "New articles are fetched daily at 6am" : "Pull down to refresh"}
               </Text>
             </View>
           }
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingTop: 10, paddingBottom: 100 }}
         />
       )}
     </SafeAreaView>
@@ -288,41 +272,50 @@ export default function FeedScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
   header: {
     flexDirection: "row",
-    alignItems: "baseline",
-    paddingHorizontal: 16,
-    paddingTop: 10,
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingTop: 8,
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 8,
+    gap: 10,
   },
-  logo: { fontSize: 22 },
-  logoSub: { fontSize: 13 },
-  offlineBanner: { backgroundColor: "#CA8A04", paddingVertical: 5, paddingHorizontal: 16 },
-  offlineText: { color: "#fff", fontSize: 12, textAlign: "center" },
-  searchRow: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
+  headerLeft: { flexDirection: "row", alignItems: "baseline", gap: 6 },
+  logo: { fontSize: 20 },
+  logoSub: { fontSize: 12 },
+
   searchWrap: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 7,
     gap: 6,
   },
-  searchIcon: { fontSize: 16 },
+  searchIcon: { fontSize: 15 },
   searchInput: { flex: 1, fontSize: 14 },
-  filters: { borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 4 },
-  filterRow: { flexGrow: 0 },
-  filterContent: { paddingHorizontal: 12, paddingTop: 6, paddingBottom: 2, gap: 6 },
-  chip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, marginRight: 4 },
-  chipText: { fontSize: 12 },
+
+  offlineBanner: { backgroundColor: "#CA8A04", paddingVertical: 5, paddingHorizontal: 16 },
+  offlineText: { color: "#fff", fontSize: 12, textAlign: "center" },
+
+  filters: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: 6,
+  },
+  filterContent: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 2, gap: 7 },
+
+  chip: {
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  chipText: { fontSize: 12.5 },
+
   empty: { alignItems: "center", paddingTop: 80, paddingHorizontal: 32 },
   emptyTitle: { fontSize: 16, marginBottom: 6 },
   emptyHint: { fontSize: 13, textAlign: "center", lineHeight: 19 },
-  loadingMore: { paddingTop: 4 },
 });
